@@ -2,6 +2,7 @@ let express = require('express')
 let app = express()
 let multer = require('multer')
 let fs = require('fs')
+let db = require('./mysql/mysql.js')
 
 // 服务器的base_url
 const BASE_URL = 'http://127.0.0.1:8000/'
@@ -87,5 +88,5 @@ app.get('/getImages', (req,res,next) => {
 
 // 绑定端口号，启动服务器
 app.listen(8000, () => {
-	console.log('服务器启动成功，在http://127.0.0.1:8000/')
+	console.log('服务器启动成功，在', BASE_URL)
 })

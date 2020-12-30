@@ -1,6 +1,6 @@
 # mihoyo-project-backend
 
-> A Vue.js project
+> A Node.js backend project
 
 ## Build Setup
 
@@ -9,7 +9,7 @@
 npm install
 
 # serve will listen at localhost:8000
-npm run dev
+node app.js
 ```
 
 For a detailed explanation on how things work, check out the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).

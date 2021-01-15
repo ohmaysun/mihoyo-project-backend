@@ -6,8 +6,10 @@ let db = require('./mysql/mysql.js')
 
 // 服务器的base_url
 const BASE_URL = 'http://127.0.0.1:8000/'
+// 图片服务器的img_base_url
+const IMG_BASE_URL = 'http://81.68.89.17:8972/images/'
 // 上传图片的目录
-let UPLOAD_FOLDER = './upload/'
+let UPLOAD_FOLDER = '/root/sjm/images/'
 
 // 创建文件夹
 let createFolder = (folder) => {
@@ -52,39 +54,153 @@ app.all('*', (req,res,next) => {
 })
 
 // /uploadImages路由的post方法，处理上传文件
+// v1 只上传到图片目录
+// v2 上传到图片目录和数据库
+
 app.post('/uploadImages', upload.array('files'), (req,res,next) => {
   //req.body contains the text fields
   // console.log(req.files)
 
   // 读取上传的图片信息
   let files = req.files
-
-  // 设置返回结果
-  if (!files) {
+  // 设置sql参数
+  let addSql = 'INSERT INTO img_tb (`img_url`,`sort`,`status`, `upload_date`, `last_op_date`) VALUES ?'
+  let opTimeStr = new Date(Date.now()).toJSON()
+  // let addSqlParams =[
+  //   ['222-1609314069967.jpeg','1',0,opTimeStr,opTimeStr],
+  //   ['222-1609314069967.jpeg','1',0,opTimeStr,opTimeStr]
+  // ]
+  let addSqlParams = []
+  files.forEach(item => {
+    addSqlParams.push([item.filename, '1', 0, opTimeStr, opTimeStr])
+  })
+  let addData = new Promise((resolve, reject) => {
+    db.query(addSql, [addSqlParams], (result, fields) => {
+      console.log('添加成功')
+      resolve(addSqlParams)
+    })
+  }).catch(err => {
+    console.log(err)
+    reject(err)
+  })
+  addData.then(files => {
+    // 设置返回结果
+    if (!files) {
+      res.send({code: 101, data: {msg: 'failed'}})
+      res.end()
+    } else {
+      res.send({code: 200, data: {msg: 'success'}})
+      res.end()
+    }
+  }).catch(err => {
     res.send({code: 101, data: {msg: 'failed'}})
-  } else {
-    res.send({code: 200, data: {msg: 'success'}})
-  }
-  res.end()
+    res.end()
+  })
 })
+
+// v1
+// app.post('/uploadImages', upload.array('files'), (req,res,next) => {
+//   //req.body contains the text fields
+//   // console.log(req.files)
+
+//   // 读取上传的图片信息
+//   let files = req.files
+
+//   // 设置返回结果
+//   if (!files) {
+//     res.send({code: 101, data: {msg: 'failed'}})
+//   } else {
+//     res.send({code: 200, data: {msg: 'success'}})
+//   }
+//   res.end()
+// })
 
 // /getImages路由的get方法，返回upload目录下的所有文件。 这是v1最简单版，之后要通过数据库来操作。
+// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数据
 app.get('/getImages', (req,res,next) => {
-  const files = fs.readdirSync(UPLOAD_FOLDER)
-  // console.log(files)
-  if (!files) {
+  let files = []
+  let getData = new Promise((resolve, reject) => {
+    db.query('select * from img_tb', [], (result, fields) => {
+      let dataString = JSON.stringify(result)
+      files = JSON.parse(dataString)
+      resolve(files)
+    })
+  }).catch(err => {
+    console.log(err)
+    reject(err)
+  })
+  getData.then(files => {
+    if (!files) {
+      res.send({code: 101, data: {msg: 'failed'}})
+      res.end()
+    } else {
+      let result = {
+        msg: 'success',
+        baseurl: IMG_BASE_URL,
+        files: files
+      }
+      res.send({code: 200, data: result})
+      res.end()
+    }
+  }).catch(err => {
     res.send({code: 101, data: {msg: 'failed'}})
-  } else {
-  	let result = {
-  	  msg: 'success',
-      baseurl: BASE_URL,
-  	  files: files
-  	}
-    res.send({code: 200, data: result})
-  }
-  res.end()
+    res.end()
+  })
 })
 
+// v1
+// /getImages路由的get方法，返回upload目录下的所有文件。 这是v1最简单版，之后要通过数据库来操作。
+// app.get('/getImages', (req,res,next) => {
+//   let files = []
+//   // 查询实例
+//   db.query('select * from img_tb', [], (result, fields) => {
+//     //console.log('数据库查询结果：')
+//     //console.log(result)
+//     // json化
+//     let dataString = JSON.stringify(result)
+//     files = JSON.parse(dataString)
+//   })
+//   //const files = fs.readdirSync(UPLOAD_FOLDER)
+//   console.log(files)
+//   if (!files) {
+//     res.send({code: 101, data: {msg: 'failed'}})
+//   } else {
+//         let result = {
+//           msg: 'success',
+//           baseurl: BASE_URL,
+//           files: files
+//         }
+//     res.send({code: 200, data: result})
+//   }
+//   res.end()
+// })
+
+// 删除某条记录接口 undone
+app.post('/delImageById', (req,res,next) => {
+  console.log(req)
+  let operation = new Promise((resolve, reject) => {
+    let updateSql = 'DELETE from img_tb where img_id = ?'
+    db.query(updateSql, [req.img_id], (result, fields) => {
+      resolve(result)
+    })
+  }).catch(err => {
+    console.log(err)
+    reject(err)
+  })
+  operation.then(files => {
+    // 设置返回结果
+    if (!files) {
+      res.send({code: 101, data: {msg: 'failed'}})
+      res.end()
+    } else {
+      res.send({code: 200, data: {msg: 'success'}})
+      res.end()
+    }
+  }).catch(err => {
+    res.send({code: 101, data: {msg: 'failed'}})
+    res.end()
+  })
+})
 
 // 绑定端口号，启动服务器
 app.listen(8000, () => {

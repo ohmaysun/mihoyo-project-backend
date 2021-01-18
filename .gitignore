@@ -14,3 +14,4 @@ upload/
 *.ntvs*
 *.njsproj
 *.sln
+.config

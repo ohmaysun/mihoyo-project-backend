@@ -38,17 +38,17 @@ let res = []
 // })
 
 // // 查询实例
-// db.query('select * from img_tb', [], (result, fields) => {
-//     console.log('查询结果：')
-//     console.log(result)
-//     // json化
-//     let dataString = JSON.stringify(result)
-//     let data = JSON.parse(dataString)
-//     console.log(data)
-//     res = data
-//     console.log(res)
-// })
-// console.log(res)
+db.query('select * from img_tb where status=1', [], (result, fields) => {
+    console.log('查询结果：')
+    console.log(result)
+    // json化
+    let dataString = JSON.stringify(result)
+    let data = JSON.parse(dataString)
+    console.log(data)
+    res = data
+    console.log(res)
+})
+console.log(res)
 
 //添加实例
 // let addSql = 'INSERT INTO img_tb (`img_url`,`sort`,`status`, `upload_date`, `last_op_date`) VALUES ?'
@@ -64,6 +64,22 @@ let res = []
 //修改实例
 // ( `sort`, `status`, `last_op_date`)
 // let updateSql = 'UPDATE img_tb SET status = ?, upload_date = ? where img_id = ?'
+// // let item = {
+// //   img_id: 202012300023,
+// //   img_url: "http://81.68.89.17:8972/images/test-1610636239185.jpeg",
+// //   last_op_date: "2021-01-14T14:57:19.186Z",
+// //   sort: "1",
+// //   status: 0,
+// //   upload_date: "2021-01-14T14:57:19.186Z"
+// // }
+// let opTimeStr = new Date(Date.now()).toJSON()
+// let updateSqlParams = [1,opTimeStr,202012300024]
+// db.query(updateSql, updateSqlParams, (result, fields) => {
+//     console.log('修改成功')
+// })
+
+//删除实例
+// let updateSql = 'DELETE from img_tb where img_id = ?'
 // let item = {
 //   img_id: 202012300023,
 //   img_url: "http://81.68.89.17:8972/images/test-1610636239185.jpeg",
@@ -72,24 +88,6 @@ let res = []
 //   status: 0,
 //   upload_date: "2021-01-14T14:57:19.186Z"
 // }
-// let opTimeStr = new Date(Date.now()).toJSON()
-// let updateSqlParams =[
-//   [1,opTimeStr,item.img_id]
-//  ]
-// db.query(updateSql, [updateSqlParams], (result, fields) => {
-//     console.log('修改成功')
+// db.query(updateSql, [item.img_id], (result, fields) => {
+//     console.log('删除成功')
 // })
-
-//删除实例
-let updateSql = 'DELETE from img_tb where img_id = ?'
-let item = {
-  img_id: 202012300023,
-  img_url: "http://81.68.89.17:8972/images/test-1610636239185.jpeg",
-  last_op_date: "2021-01-14T14:57:19.186Z",
-  sort: "1",
-  status: 0,
-  upload_date: "2021-01-14T14:57:19.186Z"
-}
-db.query(updateSql, [item.img_id], (result, fields) => {
-    console.log('删除成功')
-})

@@ -280,13 +280,36 @@ app.post('/rejectImageById', (req,res,next) => {
 })
 
 // /getShowImages路由的get方法 返回展示的图片，即审核通过的图片，status为1的数据。
-// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数据
+// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数>据
+// v3 增加pagenum和pagesize。
 app.get('/getShowImages', (req,res,next) => {
   let files = []
+  // 默认值
+  let pagesize = 20
+  let pagenum = 1
+  if (req.query.pagesize) {
+    pagesize = req.query.pagesize
+  }
+  if (req.query.pagenum) {
+    pagenum = req.query.pagenum
+  }
   let getData = new Promise((resolve, reject) => {
     db.query('select * from img_tb where status>0', [], (result, fields) => {
       let dataString = JSON.stringify(result)
       files = JSON.parse(dataString)
+      let returnlist = []
+      let totallength = files.length
+      let leftindex = pagesize * (pagenum-1)
+      let rightindex = pagesize * pagenum
+      if (leftindex>=totallength) { // 左下标越界
+        files = []
+      } else {
+        if (rightindex>totallength) {
+          files = files.slice(leftindex,totallength)
+        } else {
+          files = files.slice(leftindex,rightindex)
+        }
+      }
       resolve(files)
     })
   }).catch(err => {

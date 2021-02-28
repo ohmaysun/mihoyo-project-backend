@@ -3,23 +3,22 @@ let app = express()
 let multer = require('multer')
 let fs = require('fs')
 let db = require('./mysql/mysql.js')
+let mysql = require('mysql')
 
 // 服务器的base_url
-const BASE_URL = 'http://127.0.0.1:8000/'
+// const BASE_URL = 'http://127.0.0.1:8000/'
+const BASE_URL = 'http://81.68.89.17:8000/'
 // 图片服务器的img_base_url
 const IMG_BASE_URL = 'http://81.68.89.17:8972/images/'
 // 上传图片的目录
 let UPLOAD_FOLDER = '/root/sjm/images/'
 
-// 为req配置 处理req携带的参数
 let bodyParser = require('body-parser')
 //只要加入这个配置，在req请求对象上会多出来一个属性
 //parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
 //parse application/json
 app.use(bodyParser.json())
-// post请求携带的参数。如何获取？
-// 1、url携带的参数：req.query   2、body里携带的参数req.body
 
 // 创建文件夹
 let createFolder = (folder) => {
@@ -64,29 +63,25 @@ app.all('*', (req,res,next) => {
 })
 
 // /uploadImages路由的post方法，处理上传文件
-// v1 只上传到图片目录
-// v2 上传到图片目录和数据库
-
 app.post('/uploadImages', upload.array('files'), (req,res,next) => {
   //req.body contains the text fields
   // console.log(req.files)
 
   // 读取上传的图片信息
   let files = req.files
-  // 设置sql参数
+  // console.log(files)
+
+  // 设置sql参数。把sort设置为时间相关的值，可以保证该值是增加的
   let addSql = 'INSERT INTO img_tb (`img_url`,`sort`,`status`, `upload_date`, `last_op_date`) VALUES ?'
   let opTimeStr = new Date(Date.now()).toJSON()
-  // let addSqlParams =[
-  //   ['222-1609314069967.jpeg','1',0,opTimeStr,opTimeStr],
-  //   ['222-1609314069967.jpeg','1',0,opTimeStr,opTimeStr]
-  // ]
+  let sortVal = parseInt(opTimeStr.replace(/[^0-9]/ig,''))
   let addSqlParams = []
   files.forEach(item => {
-    addSqlParams.push([item.filename, '1', 0, opTimeStr, opTimeStr])
+    addSqlParams.push([item.filename, sortVal, 0, opTimeStr, opTimeStr])
   })
   let addData = new Promise((resolve, reject) => {
     db.query(addSql, [addSqlParams], (result, fields) => {
-      console.log('添加成功')
+      // console.log('添加成功')
       resolve(addSqlParams)
     })
   }).catch(err => {
@@ -108,36 +103,19 @@ app.post('/uploadImages', upload.array('files'), (req,res,next) => {
   })
 })
 
-// v1
-// app.post('/uploadImages', upload.array('files'), (req,res,next) => {
-//   //req.body contains the text fields
-//   // console.log(req.files)
-
-//   // 读取上传的图片信息
-//   let files = req.files
-
-//   // 设置返回结果
-//   if (!files) {
-//     res.send({code: 101, data: {msg: 'failed'}})
-//   } else {
-//     res.send({code: 200, data: {msg: 'success'}})
-//   }
-//   res.end()
-// })
-
-// /getImages路由的get方法，返回upload目录下的所有文件。 这是v1最简单版，之后要通过数据库来操作。
-// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数据
+// /getImages路由的get方法
+// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据
 app.get('/getImages', (req,res,next) => {
   let files = []
   let getData = new Promise((resolve, reject) => {
-    db.query('select * from img_tb', [], (result, fields) => {
+      db.query('SELECT * FROM img_tb ORDER BY sort ASC,last_op_date DESC', [], (result, fields) => {
       let dataString = JSON.stringify(result)
       files = JSON.parse(dataString)
       resolve(files)
     })
   }).catch(err => {
     console.log(err)
-    reject(err)
+    reject(files)
   })
   getData.then(files => {
     if (!files) {
@@ -158,39 +136,18 @@ app.get('/getImages', (req,res,next) => {
   })
 })
 
-// v1
-// /getImages路由的get方法，返回upload目录下的所有文件。 这是v1最简单版，之后要通过数据库来操作。
-// app.get('/getImages', (req,res,next) => {
-//   let files = []
-//   // 查询实例
-//   db.query('select * from img_tb', [], (result, fields) => {
-//     //console.log('数据库查询结果：')
-//     //console.log(result)
-//     // json化
-//     let dataString = JSON.stringify(result)
-//     files = JSON.parse(dataString)
-//   })
-//   //const files = fs.readdirSync(UPLOAD_FOLDER)
-//   console.log(files)
-//   if (!files) {
-//     res.send({code: 101, data: {msg: 'failed'}})
-//   } else {
-//         let result = {
-//           msg: 'success',
-//           baseurl: BASE_URL,
-//           files: files
-//         }
-//     res.send({code: 200, data: result})
-//   }
-//   res.end()
-// })
-
-// /delImageById 参数：id。 图片管理-删除某条记录接口
+// 删除某条记录接口  参数：id。 图片管理-删除某条记录接口
 app.post('/delImageById', (req,res,next) => {
-  // console.log(req)
+  //console.log(req)
+  //console.log(req.img_id)
+  //console.log('收到post请求了')
+  //获取url中的请求参数
+  //let query = req.query
+  //console.log(query)
+  //在Express中没有内置获取表单post请求的api，
   //这里我们需要使用一个第三方包 body-parser
-  let params = req.body 
-  // console.log(params) // { img_id: 202012300021 }
+  let params = req.body
+  //console.log(params)
   let operation = new Promise((resolve, reject) => {
     let updateSql = 'DELETE from img_tb where img_id = ?'
     db.query(updateSql, [params.img_id], (result, fields) => {
@@ -218,11 +175,11 @@ app.post('/delImageById', (req,res,next) => {
 // /passImageById 参数：id。 图片管理-通过。status:0不可展示。status:1可展示。 要把status改为1
 app.post('/passImageById', (req,res,next) => {
   // console.log(req)
-  //这里我们需要使用一个第三方包 body-parser
+  // 这里我们需要使用一个第三方包 body-parser
   let params = req.body 
   // console.log(params) // { img_id: 202012300021 }
   let operation = new Promise((resolve, reject) => {
-    let updateSql = 'UPDATE img_tb SET status = ?, upload_date = ? where img_id = ?'
+    let updateSql = 'UPDATE img_tb SET status = ?, last_op_date = ? where img_id = ?'
     let opTimeStr = new Date(Date.now()).toJSON()
     let updateSqlParams = [1,opTimeStr,params.img_id]
     db.query(updateSql, updateSqlParams, (result, fields) => {
@@ -249,12 +206,9 @@ app.post('/passImageById', (req,res,next) => {
 
 // /rejectImageById 参数：id。 图片管理-拒绝。status:0不可展示。status:1可展示。 要把status改为0
 app.post('/rejectImageById', (req,res,next) => {
-  // console.log(req)
-  //这里我们需要使用一个第三方包 body-parser
-  let params = req.body 
-  // console.log(params) // { img_id: 202012300021 }
+  let params = req.body
   let operation = new Promise((resolve, reject) => {
-    let updateSql = 'UPDATE img_tb SET status = ?, upload_date = ? where img_id = ?'
+    let updateSql = 'UPDATE img_tb SET status = ?, last_op_date = ? where img_id = ?'
     let opTimeStr = new Date(Date.now()).toJSON()
     let updateSqlParams = [0,opTimeStr,params.img_id]
     db.query(updateSql, updateSqlParams, (result, fields) => {
@@ -276,12 +230,13 @@ app.post('/rejectImageById', (req,res,next) => {
   }).catch(err => {
     res.send({code: 101, data: {msg: 'failed'}})
     res.end()
-  })
+  })  
 })
 
 // /getShowImages路由的get方法 返回展示的图片，即审核通过的图片，status为1的数据。
-// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数>据
+// v2 返回数据库的查询数据 利用promise保证先请求接口再返回数据。后续v3要按页返回数据
 // v3 增加pagenum和pagesize。
+// v4 增加排序
 app.get('/getShowImages', (req,res,next) => {
   let files = []
   // 默认值
@@ -293,8 +248,10 @@ app.get('/getShowImages', (req,res,next) => {
   if (req.query.pagenum) {
     pagenum = req.query.pagenum
   }
+  //console.log(req)
+  //console.log(req.query)
   let getData = new Promise((resolve, reject) => {
-    db.query('select * from img_tb where status>0', [], (result, fields) => {
+    db.query("SELECT * FROM img_tb WHERE status>0 ORDER BY sort ASC,last_op_date DESC", [], (result, fields) => {
       let dataString = JSON.stringify(result)
       files = JSON.parse(dataString)
       let returnlist = []
@@ -307,9 +264,10 @@ app.get('/getShowImages', (req,res,next) => {
         if (rightindex>totallength) {
           files = files.slice(leftindex,totallength)
         } else {
-          files = files.slice(leftindex,rightindex)
+          files = files.slice(leftindex,rightindex) 
         }
       }
+      //console.log(files)
       resolve(files)
     })
   }).catch(err => {
@@ -335,7 +293,77 @@ app.get('/getShowImages', (req,res,next) => {
   })
 })
 
+// 置顶某条记录接口  参数：id。 图片管理-置顶某条记录接口
+app.post('/topImageById', (req,res,next) => {
+  let params = req.body
+  let operation = new Promise((resolve, reject) => {
+    let updateSql = 'UPDATE img_tb SET sort = ?, last_op_date = ? where img_id = ?'
+    let opTimeStr = new Date(Date.now()).toJSON()
+    let updateSqlParams = [params.sort,opTimeStr,params.img_id]
+    db.query(updateSql, updateSqlParams, (result, fields) => {
+      resolve(result)
+    })
+  }).catch(err => {
+    console.log(err)
+    reject(err)
+  })
+  operation.then(files => {
+    if (!files) {
+      res.send({code: 101, data: {msg: 'failed'}})
+      res.end()
+    } else {
+      res.send({code: 200, data: {msg: 'success'}})
+      res.end()
+    }
+  }).catch(err => {
+    res.send({code: 101, data: {msg: 'failed'}})
+    res.end()
+  })
+})
+
+// saveOrder接口，通过更新他们的权重实现排序
+app.post('/saveOrder', (req,res,next) => {
+  let params = req.body
+  let oplist = JSON.parse(params.data)
+  let updateSql = 'UPDATE img_tb SET sort = ?, last_op_date = ? where img_id = ?'
+  let sqls = ''
+  // 拼接sql语句
+  // let updateSql = 'insert into img_tb(img_id,last_op_date,sort) values ? on duplicate key update last_op_date=values(last_op_date),sort=values(sort)'
+  let opTimeStr = new Date(Date.now()).toJSON()
+  let updateSqlParams = []
+  oplist.forEach(item => {
+    updateSqlParams.push([item.sort, opTimeStr, item.img_id])
+  })
+  updateSqlParams.forEach((item, index) => {
+    sqls += mysql.format(updateSql, item) + ';'
+  })
+  //console.log(sqls)
+  // 执行拼接的supdate语句
+  let updateData = new Promise((resolve, reject) => {
+    db.query(sqls, (result, fields) => {
+      //console.log(result)
+      //console.log(fields)
+      resolve(fields.length)
+    })
+  }).catch(err => {
+    console.log(err)
+    reject(err)
+  })
+  updateData.then(files => {
+    if (!files) {
+      res.send({code: 101, data: {msg: 'failed'}})
+      res.end()
+    } else {
+      res.send({code: 200, data: {msg: 'success'}})
+      res.end()
+    }
+  }).catch(err => {
+    res.send({code: 101, data: {msg: 'failed'}})
+    res.end()
+  })
+})
+
 // 绑定端口号，启动服务器
 app.listen(8000, () => {
-	console.log('服务器启动成功，在', BASE_URL)
+  console.log('服务器启动成功，在' + BASE_URL)
 })
